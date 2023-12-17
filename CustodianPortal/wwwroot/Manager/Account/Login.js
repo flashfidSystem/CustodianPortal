@@ -1,183 +1,191 @@
-﻿$(document).ready(function () {
-    const cacheDomElements = {
-        Username: document.getElementById('Username'),
-        Password: document.getElementById('Password'),
-        BtnLogin: document.getElementById('signin-btn')
-    };
+﻿let domElements = {};
 
-    cacheDomElements.BtnLogin.addEventListener('click', async function (e) {
-        e.preventDefault();
-        const button = cacheDomElements.BtnLogin;
-        button.disabled = true;
-        button.innerHTML = '<i class="fas fa-spinner fa-pulse fa-5"></i>';
+function cacheDomElements() {
+    domElements.Username = document.getElementById('Username');
+    domElements.Password = document.getElementById('Password');
+    domElements.BtnLogin = document.getElementById('signin-btn');
+}
 
-        const validationResult = executeClientSideValidation();
+function configureEventHandlers() {
+    domElements.BtnLogin.addEventListener('click', onLoginButtonClickHandle);
+}
 
-        if (!validationResult.isSuccess) {
-            toastr.error(validationResult.errorMsg);
-            button.disabled = false;
-            button.innerHTML = 'Login';
-            return false;
-        }
+async function onLoginButtonClickHandle(e) {
+    e.preventDefault();
 
-        try {
-            const resp = await executeServerSideValidation(validationResult.formData);
+    domElements.BtnLogin.disabled = true;
+    domElements.BtnLogin.innerHTML = '<i class="fas fa-spinner fa-pulse fa-5"></i>';
 
+    const validationResult = executeClientSideValidation();
 
-            if (resp.isSuccess) {
-                const newLogin = await submitFormData(resp.formData);
-                console.log(newLogin);
-                if (newLogin.isSuccess) {
-                  
-                    if (newLogin.formData.IsPasswordUpdate == false) {
-                        toastr.success("Login successful, Change your password.");
-                        window.location.href = '/Profile/changepassword';
-                    } else {
-                        toastr.success("Login successful");
-                        window.location.href = '/Dashboard/dashboard_Index';
-                    }
+    if (!validationResult.isSuccess) {
+        toastr.error(validationResult.errorMsg);
+        domElements.BtnLogin.disabled = false;
+        domElements.BtnLogin.innerHTML = 'Login';
 
-                   
+        return false;
+    }
+
+    try {
+        const resp = await executeServerSideValidation(validationResult.formData);
+
+        if (resp.isSuccess) {
+            const newLogin = await submitFormData(resp.formData);
+            console.log(newLogin);
+
+            if (newLogin.isSuccess) {
+                if (newLogin.formData.IsPasswordUpdate == false) {
+                    toastr.success("Login successful, Change your password.");
+                    window.location.href = '/Profile/changepassword';
                 } else {
-                    toastr.error(newLogin.errorMsg);
-                    button.disabled = false;
-                    button.innerHTML = 'Login';
-                    return;
+                    toastr.success("Login successful");
+                    window.location.href = '/Dashboard/dashboard_Index';
                 }
             } else {
-                console.log(resp);
-                toastr.error(resp.errorMsg);
-                button.disabled = false;
-                button.innerHTML = 'Login';
+                toastr.error(newLogin.errorMsg);
+                domElements.BtnLogin.disabled = false;
+                domElements.BtnLogin.innerHTML = 'Login';
+
+                return;
             }
-        } catch (error) {
-            console.error(error.responseJSON.errorMsg);
-            toastr.error("An error occurred while processing the request");
-            button.disabled = false;
-            button.innerHTML = 'Login';
+        } else {
+            console.log(resp);
+            toastr.error(resp.errorMsg);
+            domElements.BtnLogin.disabled = false;
+            domElements.BtnLogin.innerHTML = 'Login';
         }
-    });
+    } catch (error) {
+        console.error(error.responseJSON.errorMsg);
+        toastr.error("An error occurred while processing the request");
+        domElements.BtnLogin.disabled = false;
+        domElements.BtnLogin.innerHTML = 'Login';
+    }
+}
 
-    function executeClientSideValidation() {
-        const returnData = {
-            isSuccess: true,
-            errorMsg: '',
-            formData: {}
-        };
+function executeClientSideValidation() {
+    const returnData = {
+        isSuccess: true,
+        errorMsg: '',
+        formData: {}
+    };
 
-        const usernameElement = cacheDomElements.Username;
-        const passwordElement = cacheDomElements.Password;
+    const usernameElement = domElements.Username;
+    const passwordElement = domElements.Password;
 
-        const inputedUsername = getInputElementValue(usernameElement);
-        const inputedPassword = getInputElementValue(passwordElement);
+    const inputedUsername = getInputElementValue(usernameElement);
+    const inputedPassword = getInputElementValue(passwordElement);
 
-        if (inputElementIsEmpty(inputedUsername)) {
-            returnData.isSuccess = false;
-            returnData.errorMsg = "Username field cannot be empty";
-            returnData.formData = {};
+    if (inputElementIsEmpty(inputedUsername)) {
+        returnData.isSuccess = false;
+        returnData.errorMsg = "Username field cannot be empty";
+        returnData.formData = {};
 
-            return returnData;
-        }
-
-        if (inputElementIsEmpty(inputedPassword)) {
-            returnData.isSuccess = false;
-            returnData.errorMsg = "Password field cannot be empty";
-            returnData.formData = {};
-            return returnData;
-        }
-
-        returnData.formData.userName = inputedUsername;
-        returnData.formData.password = inputedPassword;
         return returnData;
     }
 
-    async function executeServerSideValidation(formData) {
-        const returnData = {
-            isSuccess: true,
-            errorMsg: '',
-            formData: {}
-        };
+    if (inputElementIsEmpty(inputedPassword)) {
+        returnData.isSuccess = false;
+        returnData.errorMsg = "Password field cannot be empty";
+        returnData.formData = {};
+        return returnData;
+    }
 
-        const inputedUsername = formData.userName;
-        const inputedPassword = formData.password;
-        const formData64 = {
-            Username: inputedUsername + ":" + inputedPassword
-        };
-        const payloadBase64 = btoa(JSON.stringify(formData64));
+    returnData.formData.userName = inputedUsername;
+    returnData.formData.password = inputedPassword;
+    return returnData;
+}
 
-        try {
-            const response = await $.ajax({
-                url: '/Validation/LoginPost',
-                type: 'POST',
-                contentType: 'application/json',
-                headers: {
-                    'payloadBase64': payloadBase64
-                },
-                data: JSON.stringify({ username: inputedUsername })
-            });
+async function executeServerSideValidation(formData) {
+    const returnData = {
+        isSuccess: true,
+        errorMsg: '',
+        formData: {}
+    };
 
-            if (response.isSuccess) {
-                returnData.isSuccess = true;
-                returnData.formData = response.formData;
-                return returnData;
-            } else {
-                returnData.isSuccess = false;
-                returnData.errorMsg = response.errorMsg;
-                return returnData;
-            }
-        } catch (error) {
+    const inputedUsername = formData.userName;
+    const inputedPassword = formData.password;
+    const formData64 = {
+        Username: inputedUsername + ":" + inputedPassword
+    };
+    const payloadBase64 = btoa(JSON.stringify(formData64));
+
+    try {
+        const response = await $.ajax({
+            url: '/Validation/LoginPost',
+            type: 'POST',
+            contentType: 'application/json',
+            headers: {
+                'payloadBase64': payloadBase64
+            },
+            data: JSON.stringify({ username: inputedUsername })
+        });
+
+        if (response.isSuccess) {
+            returnData.isSuccess = true;
+            returnData.formData = response.formData;
+            return returnData;
+        } else {
             returnData.isSuccess = false;
-            returnData.errorMsg = error.responseJSON.errorMsg;
+            returnData.errorMsg = response.errorMsg;
             return returnData;
         }
+    } catch (error) {
+        returnData.isSuccess = false;
+        returnData.errorMsg = error.responseJSON.errorMsg;
+        return returnData;
     }
+}
 
-    async function submitFormData(data) {
-        const formData = {
-            Username: data.userName
-        };
-        
+async function submitFormData(data) {
+    const formData = {
+        Username: data.userName
+    };
 
-        const returnData = {
-            isSuccess: true,
-            errorMsg: '',
-            formData: {}
-        };
 
-        const token = data.token;
+    const returnData = {
+        isSuccess: true,
+        errorMsg: '',
+        formData: {}
+    };
 
-        try {
-            const response = await $.ajax({
-                url: data.url,
-                type: 'POST',
-                contentType: 'application/json',
-                headers: {
-                    'HToken': token
-                },
-                data: JSON.stringify({ Username: formData.Username})
-            });
+    const token = data.token;
 
-            if (response.isSuccess) {
-                returnData.isSuccess = true;
-                returnData.formData = response.formData;
-                return returnData;
-            } else {
-                returnData.isSuccess = false;
-                returnData.errorMsg = response.errorMsg;
-                return returnData;
-            }
-        } catch (error) {
+    try {
+        const response = await $.ajax({
+            url: data.url,
+            type: 'POST',
+            contentType: 'application/json',
+            headers: {
+                'HToken': token
+            },
+            data: JSON.stringify({ Username: formData.Username })
+        });
+
+        if (response.isSuccess) {
+            returnData.isSuccess = true;
+            returnData.formData = response.formData;
+            return returnData;
+        } else {
             returnData.isSuccess = false;
-            returnData.errorMsg = error.responseJSON.errorMsg;
+            returnData.errorMsg = response.errorMsg;
             return returnData;
         }
+    } catch (error) {
+        returnData.isSuccess = false;
+        returnData.errorMsg = error.responseJSON.errorMsg;
+        return returnData;
     }
+}
 
-    function inputElementIsEmpty(value) {
-        return value.trim() === '';
-    }
+function inputElementIsEmpty(value) {
+    return value.trim() === '';
+}
 
-    function getInputElementValue(elem) {
-        return elem.value.trim();
-    }
+function getInputElementValue(elem) {
+    return elem.value.trim();
+}
+
+$(document).ready(function () {
+    cacheDomElements();
+    configureEventHandlers();
 });
